@@ -3,9 +3,9 @@
 
 
 ### Contenido de la actividad:
-- Instrucciones Evaluación Parcial EA3 Almacenamiento en la nube 35%:
-    1. Cada alumno, deberá enviar código que Terraform, que permita desplegar la siguiente infraestructura el AWS.
-    2. Cree una VPC, utilizando el módulo de AWS (terraform-aws-modules/vpc/aws) considerando el siguiente detalle:
+### Instrucciones Evaluación Parcial EA3 Almacenamiento en la nube 35%:
+1. Cada alumno, deberá enviar código que Terraform, que permita desplegar la siguiente infraestructura el AWS.
+2. Cree una VPC, utilizando el módulo de AWS (terraform-aws-modules/vpc/aws) considerando el siguiente detalle:
 ```
 module "vpc" {
     source = "terraform-aws-modules/vpc/aws"
