@@ -1,6 +1,4 @@
-# AWS-LoadBalancer-EFS
-
-
+# AWS-LoadBalancerEC2-EFS
 
 ### Contenido de la actividad:
 ### Instrucciones Evaluación Parcial EA3 Almacenamiento en la nube 35%:
