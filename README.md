@@ -51,3 +51,9 @@ module "vpc" {
 
 8. Copie desde el bucket S3, el archivo “index.php” hacie el path /var/www/html (EFS). 
 9. Cree un Balanceador de Carga (ALB) en AWS adjuntando las 3 máquinas creadas antes como targets. Este LB también debe aceptar conexiones en el puerto 80 desde cualquier dirección IP. 
+
+
+- terraform init
+- terraform init --upgrade
+- terraform apply -auto-approve
+- terraform destroy
