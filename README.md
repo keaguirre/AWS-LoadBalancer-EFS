@@ -3,9 +3,9 @@
 
 
 ### Contenido de la actividad:
-- Instrucciones Evaluación Parcial EA3: Almacenamiento en la nube 35%
-    Cada alumno, deberá enviar código que Terraform, que permita desplegar la siguiente infraestructura el AWS.
-    Cree una VPC, utilizando el módulo de AWS (terraform-aws-modules/vpc/aws) considerando el siguiente detalle:
+- Instrucciones Evaluación Parcial EA3 Almacenamiento en la nube 35%:
+    1. Cada alumno, deberá enviar código que Terraform, que permita desplegar la siguiente infraestructura el AWS.
+    2. Cree una VPC, utilizando el módulo de AWS (terraform-aws-modules/vpc/aws) considerando el siguiente detalle:
 ```
 module "vpc" {
     source = "terraform-aws-modules/vpc/aws"
@@ -27,8 +27,8 @@ module "vpc" {
 }
 ```
 
-    Cree un "Security Group" que permita conexiones al puerto tcp/80 (http), tcp/443 (https) y tcp/22 (ssh).
-    Cree un bucket S3, copie el siguiente archivo “.php”:
+3. Cree un "Security Group" que permita conexiones al puerto tcp/80 (http), tcp/443 (https) y tcp/22 (ssh).
+4. Cree un bucket S3, copie el siguiente archivo “.php”:
 
 ```php
 <html xmlns="http://www.w3.org/1999/xhtml" >
@@ -43,11 +43,11 @@ module "vpc" {
     </body>
 </html>
 ```
-1. Lanze 3 Instancias Virtuales en EC2, cada una en una AZ distinta (availability zone) y en las subredes públicas disponibles. Para cada una de estas instancias, asocie la llave de usuario (Key user) "vockey" y el "Security Group" configurado en el punto 1.
-2. Lance un volumen EFS y montelo dentro de cada una de las instancia EC2 en el path /var/www/html.
+5. Lanze 3 Instancias Virtuales en EC2, cada una en una AZ distinta (availability zone) y en las subredes públicas disponibles. Para cada una de estas instancias, asocie la llave de usuario (Key user) "vockey" y el "Security Group" configurado en el punto 1.
+6. Lance un volumen EFS y montelo dentro de cada una de las instancia EC2 en el path /var/www/html.
 
-3. Instale el servicio webserver (apache) y php en cada instancia EC2 (Puedes usar “EC2 user data” para realizar esto.
+7. Instale el servicio webserver (apache) y php en cada instancia EC2 (Puedes usar “EC2 user data” para realizar esto.
     ```sudo yum install -y httpd php```
 
-4. Copie desde el bucket S3, el archivo “index.php” hacie el path /var/www/html (EFS). 
-5. Cree un Balanceador de Carga (ALB) en AWS adjuntando las 3 máquinas creadas antes como targets. Este LB también debe aceptar conexiones en el puerto 80 desde cualquier dirección IP. 
+8. Copie desde el bucket S3, el archivo “index.php” hacie el path /var/www/html (EFS). 
+9. Cree un Balanceador de Carga (ALB) en AWS adjuntando las 3 máquinas creadas antes como targets. Este LB también debe aceptar conexiones en el puerto 80 desde cualquier dirección IP. 
