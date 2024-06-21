@@ -1,4 +1,5 @@
 # AWS-LoadBalancerEC2-EFS
+## [TF AWS Docs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
 
 ### Contenido de la actividad:
 ### Instrucciones Evaluación Parcial EA3 Almacenamiento en la nube 35%:
