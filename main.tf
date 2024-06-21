@@ -37,21 +37,21 @@ resource "aws_security_group" "alb_sg" {
   description = "Allow HTTP traffic to ALB"
   vpc_id      = module.vpc.vpc_id
 
-  ingress {
-    description = "Allow HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  # ingress {
+  #   description = "Allow HTTP"
+  #   from_port   = 80
+  #   to_port     = 80
+  #   protocol    = "tcp"
+  #   cidr_blocks = ["0.0.0.0/0"]
+  # }
 
-  egress {
-    description = "Allow all outbound traffic"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  # egress {
+  #   description = "Allow all outbound traffic"
+  #   from_port   = 0
+  #   to_port     = 0
+  #   protocol    = "-1"
+  #   cidr_blocks = ["0.0.0.0/0"]
+  # }
 
   tags = {
     Name        = "alb-sg"
@@ -65,37 +65,37 @@ resource "aws_security_group" "ec2_sg" {
   description = "Allow HTTP, HTTPS, SSH, and NFS traffic"
   vpc_id      = module.vpc.vpc_id
 
-  ingress {
-    description = "Allow HTTP from ALB"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    security_groups = [aws_security_group.alb_sg.id]
-  }
+  # ingress {
+  #   description = "Allow HTTP from ALB"
+  #   from_port   = 80
+  #   to_port     = 80
+  #   protocol    = "tcp"
+  #   security_groups = [aws_security_group.alb_sg.id]
+  # }
 
-  ingress {
-    description = "Allow HTTPS from ALB"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    security_groups = [aws_security_group.alb_sg.id]
-  }
+  # ingress {
+  #   description = "Allow HTTPS from ALB"
+  #   from_port   = 443
+  #   to_port     = 443
+  #   protocol    = "tcp"
+  #   security_groups = [aws_security_group.alb_sg.id]
+  # }
 
-  ingress {
-    description = "Allow SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Se recomienda restringir esto a la IP del administrador
-  }
+  # ingress {
+  #   description = "Allow SSH"
+  #   from_port   = 22
+  #   to_port     = 22
+  #   protocol    = "tcp"
+  #   cidr_blocks = ["0.0.0.0/0"] # Se recomienda restringir esto a la IP del administrador
+  # }
 
-  egress {
-    description = "Allow all outbound traffic"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  # egress {
+  #   description = "Allow all outbound traffic"
+  #   from_port   = 0
+  #   to_port     = 0
+  #   protocol    = "-1"
+  #   cidr_blocks = ["0.0.0.0/0"]
+  # }
 
   tags = {
     Name        = "ec2-sg"
@@ -104,26 +104,26 @@ resource "aws_security_group" "ec2_sg" {
 }
 
 # Regla de ingreso para permitir NFS desde EC2 a EFS
-resource "aws_security_group_rule" "efs_sg_ingress" {
-  type              = "ingress"
-  from_port         = 2049
-  to_port           = 2049
-  protocol          = "tcp"
-  security_group_id = aws_security_group.efs_sg.id
-  source_security_group_id = aws_security_group.ec2_sg.id
-  description       = "Allow NFS from EC2 instances"
-}
+# resource "aws_security_group_rule" "efs_sg_ingress" {
+#   type              = "ingress"
+#   from_port         = 2049
+#   to_port           = 2049
+#   protocol          = "tcp"
+#   security_group_id = aws_security_group.efs_sg.id
+#   source_security_group_id = aws_security_group.ec2_sg.id
+#   description       = "Allow NFS from EC2 instances"
+# }
 
 # Regla de ingreso para permitir NFS desde EFS a EC2
-resource "aws_security_group_rule" "ec2_sg_ingress" {
-  type              = "ingress"
-  from_port         = 2049
-  to_port           = 2049
-  protocol          = "tcp"
-  security_group_id = aws_security_group.ec2_sg.id
-  source_security_group_id = aws_security_group.efs_sg.id
-  description       = "Allow NFS from EFS"
-}
+# resource "aws_security_group_rule" "ec2_sg_ingress" {
+#   type              = "ingress"
+#   from_port         = 2049
+#   to_port           = 2049
+#   protocol          = "tcp"
+#   security_group_id = aws_security_group.ec2_sg.id
+#   source_security_group_id = aws_security_group.efs_sg.id
+#   description       = "Allow NFS from EFS"
+# }
 
 # Security group para EFS
 resource "aws_security_group" "efs_sg" {
@@ -152,8 +152,8 @@ resource "aws_efs_file_system" "efs" {
 
 resource "aws_efs_mount_target" "efs_mount" {
   file_system_id  = aws_efs_file_system.efs.id
-  subnet_id       = element(module.vpc.public_subnets, 0)
-  security_groups = [aws_security_group.efs_sg.id]
+  subnet_id = element(module.vpc.private_subnets, 0) #aqui esta listando la subred publica 1?necesito el id de cada subred privada
+  # security_groups = [aws_security_group.efs_sg.id]
 }
 
 # Creacion del Bucket index.php
@@ -193,7 +193,7 @@ resource "aws_s3_bucket_policy" "ev3bucket" {
         Effect = "Allow",
         Principal = "*",
         Action = ["s3:GetObject"],
-        Resource = ["${aws_s3_bucket.ev3bucket.arn}/*"], # Corrección aquí
+        Resource = ["${aws_s3_bucket.ev3bucket.arn}/*"],
       },
     ],
   })
@@ -232,7 +232,7 @@ resource "aws_instance" "ec2-webserver" {
   instance_type          = "t2.micro"
   key_name               = "vockey"
   subnet_id              = element(module.vpc.private_subnets, count.index)
-  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
+  # vpc_security_group_ids = [aws_security_group.ec2_sg.id]
   count                  = 3
   availability_zone      = element(module.vpc.azs, count.index)
   depends_on             = [aws_efs_mount_target.efs_mount]
