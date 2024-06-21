@@ -1,8 +1,4 @@
-<<<<<<< Updated upstream
 # AWS-LoadBalancerEC2-EFS
-=======
-# AWS-LoadBalancer-EFS
->>>>>>> Stashed changes
 
 ### Contenido de la actividad:
 ### Instrucciones Evaluación Parcial EA3 Almacenamiento en la nube 35%:
