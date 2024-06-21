@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 # AWS-LoadBalancerEC2-EFS
+=======
+# AWS-LoadBalancer-EFS
+>>>>>>> Stashed changes
 
 ### Contenido de la actividad:
 ### Instrucciones Evaluación Parcial EA3 Almacenamiento en la nube 35%:
@@ -50,8 +54,32 @@ module "vpc" {
 8. Copie desde el bucket S3, el archivo “index.php” hacie el path /var/www/html (EFS). 
 9. Cree un Balanceador de Carga (ALB) en AWS adjuntando las 3 máquinas creadas antes como targets. Este LB también debe aceptar conexiones en el puerto 80 desde cualquier dirección IP. 
 
-
+# Terraform comandos básicos
 - terraform init
 - terraform init --upgrade
 - terraform apply -auto-approve
 - terraform destroy
+
+# Generar grafico de la IaaC
+- terraform graph > graph.dot
+- sudo dnf install graphviz
+- dot -Tpng graph.dot -o graph.png
+
+# Tf.main index
+1. Provider
+2. VPC Instanciada en las disponibilidades us-east-1a, 1b, 1c
+3. Security group para ALB
+4. Security group para EC2
+5. Regla de ingreso para permitir NFS desde EC2 a EFS
+6. Regla de ingreso para permitir NFS desde EFS a EC2
+7. Security group para EFS
+8. Creacion del EFS
+9. Creacion del Bucket index.php
+    - Bucket index.php y error.html objects
+10. Instancias EC2
+11. Index.php bucket object url & static site
+------
+## Todo:
+12. APP Load Balancer (ALB)
+    - Rules
+    - get IP

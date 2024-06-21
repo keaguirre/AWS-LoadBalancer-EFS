@@ -156,7 +156,7 @@ resource "aws_efs_mount_target" "efs_mount" {
   security_groups = [aws_security_group.efs_sg.id]
 }
 
-# Bucket index.php
+# Creacion del Bucket index.php
 resource "random_id" "bucket" {
   byte_length = 8
 }
@@ -193,13 +193,14 @@ resource "aws_s3_bucket_policy" "ev3bucket" {
         Effect = "Allow",
         Principal = "*",
         Action = ["s3:GetObject"],
-        Resource = [aws_s3_bucket.ev3bucket.arn],
+        Resource = ["${aws_s3_bucket.ev3bucket.arn}/*"], # Corrección aquí
       },
     ],
   })
   depends_on = [time_sleep.wait_10_seconds]
 }
 
+# Bucket index.php y error.html objects
 resource "aws_s3_object" "index" {
   bucket       = aws_s3_bucket.ev3bucket.id
   key          = "index.php"
@@ -223,7 +224,6 @@ resource "aws_s3_bucket_website_configuration" "ev3bucket" {
   error_document {
     key = "error.html"
   }
-
 }
 
 # Instancias EC2
@@ -241,15 +241,14 @@ resource "aws_instance" "ec2-webserver" {
     yum install -y amazon-efs-utils
     mkdir /mnt/efs
     mount -t efs -o tls ${aws_efs_file_system.efs.id}:/ /mnt/efs
-    aws s3 cp s3://${aws_s3_bucket.ev3bucket.website_endpoint}/index.php /var/www/html/index.php #
-  EOF 
+    aws s3 cp s3://${aws_s3_bucket.ev3bucket.bucket}.s3.amazonaws.com/index.php /var/www/html/index.php #
+  EOF
   tags = {
     Name = "ec2-webserver ${count.index + 1}"
   }
-  #The attribute "website_endpoint" is deprecated. Refer to the provider documentation for details.
 }
 
 output "url" {
   value       = aws_s3_bucket_website_configuration.ev3bucket.website_endpoint
-  description = "The URL of the website"
+  description = "The URL of the index.php file & static website: "
 }
