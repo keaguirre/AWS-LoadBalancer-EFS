@@ -63,20 +63,74 @@ module "vpc" {
 - dot -Tpng graph.dot -o graph.png
 
 # Tf.main index
-1. Provider
-2. VPC Instanciada en las disponibilidades us-east-1a, 1b, 1c
-3. Security group para ALB
-4. Security group para EC2
-5. Regla de ingreso para permitir NFS desde EC2 a EFS
-6. Regla de ingreso para permitir NFS desde EFS a EC2
-7. Security group para EFS
-8. Creacion del EFS
-9. Creacion del Bucket index.php
-    - Bucket index.php y error.html objects
-10. Instancias EC2
-11. Index.php bucket object url & static site
-------
-## Todo:
-12. APP Load Balancer (ALB)
-    - Rules
-    - get IP
+
+# Orden de elementos en GUI
+### Crear los Grupos de Seguridad:
+    1. Grupo de Seguridad para las Instancias EC2:
+        - Permitir tráfico entrante en el puerto 80 (HTTP) desde el grupo de seguridad del ALB.
+        - Permitir tráfico NFS (puerto 2049) desde el grupo de seguridad del EFS.
+    2. Grupo de Seguridad para el EFS:
+        - Permitir tráfico NFS (puerto 2049) desde el grupo de seguridad de las instancias EC2.
+    3. Grupo de Seguridad para el ALB:
+        - Permitir tráfico HTTP entrante en el puerto 80 desde Internet.
+
+### Crear la VPC y Subnets:
+    1. VPC:
+        - Navega a la sección de VPC en la consola de AWS.
+        - Crea una nueva VPC con un bloque CIDR (por ejemplo, 10.0.0.0/16).
+        - Subnets dentro de la VPC, crea tres subnets privadas (una en cada zona de disponibilidad: us-east-1a, us-east-1b, us-east-1c), por ejemplo:
+                1.  us-east-1a: 10.0.1.0/24
+                2.  us-east-1b: 10.0.2.0/24
+                3.  us-east-1c: 10.0.3.0/24
+
+    2. Crear el Internet Gateway y NAT Gateway:
+        - Internet Gateway:
+            - Crea un Internet Gateway y asígnalo a la VPC.
+        - Subnet Pública para el NAT Gateway:
+            - Crea una subnet pública adicional en una de las zonas de disponibilidad.
+        - NAT Gateway:
+            - Crea un NAT Gateway en la subnet pública y asígnale una Elastic IP.
+        - Tabla de Rutas:
+            - Crea una nueva tabla de rutas y asócialo a las subnets privadas.
+            - Añade una ruta en la tabla de rutas que permita el tráfico a Internet (0.0.0.0/0) a través del NAT Gateway.
+
+### Crear el Bucket S3:
+    - Navega a la sección de S3 en la consola.
+    - Crea un nuevo bucket y sube el archivo PHP que necesitarás.
+
+### Crear el EFS:
+    - Navega a la sección de EFS en la consola.
+    - Crea un nuevo sistema de archivos EFS y configúralo para estar disponible en las tres zonas de disponibilidad.
+    - Asigna el grupo de seguridad correspondiente para permitir el acceso NFS desde las instancias EC2.
+
+### Crear las Instancias EC2:
+    - Navega a la sección de EC2 en la consola.
+    - Lanza tres instancias EC2, cada una en una de las subnets privadas.
+    - Asigna el grupo de seguridad de EC2 a estas instancias.
+    - Configura un script de userdata para cada instancia que:
+        1. Instale Apache.
+        2. Monte el EFS.
+        3. Descargue el archivo PHP desde el bucket S3.
+    - Asegúrate de que las instancias tengan un rol de IAM que permita acceso al bucket S3.
+
+### Crear el Application Load Balancer (ALB):
+    - Navega a la sección de EC2 y selecciona "Load Balancers".
+    - Crea un nuevo Application Load Balancer.
+        1. Configúralo para estar en las tres zonas de disponibilidad.
+        2. Crea un listener en el puerto 80.
+        3. Asigna el grupo de seguridad del ALB.
+    - Crea un target group y registra las instancias EC2 en el target group.
+    - Configura el listener para redirigir el tráfico al target group.
+
+### Probar la Configuración:
+    - Una vez que todo esté configurado, navega a la dirección del ALB para asegurarte de que el tráfico se redirige correctamente a las instancias EC2 y que el archivo PHP se está sirviendo correctamente.
+
+## Resumen del Orden Actualizado:
+    1.Crear los Grupos de Seguridad.
+    2.Crear la VPC y Subnets.
+    3.Crear el Internet Gateway y NAT Gateway.
+    4.Crear el Bucket S3.
+    5.Crear el EFS.
+    6.Crear las Instancias EC2.
+    7.Crear el Application Load Balancer (ALB).
+    8.Probar la Configuración.
