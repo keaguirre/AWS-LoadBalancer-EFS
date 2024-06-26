@@ -27,35 +27,38 @@ module "vpc" {
 
   tags = {
     Terraform   = "true"
-    Environment = "prd"
+    Environment = "dev"
   }
 }
+# If single_nat_gateway = true, then all private subnets will route their Internet traffic through this single NAT gateway.
+# The NAT gateway will be placed in the first public subnet in your public_subnets block.
+
 
 # Security group para ALB
-resource "aws_security_group" "alb_sg" {
+resource "aws_security_group" "alb_sg" { #ALB es un resource de EC2, deberia realmente tener un sg, podria tomarse como un recuso aparte o es un servicio de ec2?
   name        = "alb-sg"
   description = "Allow HTTP traffic to ALB"
   vpc_id      = module.vpc.vpc_id
 
-  # ingress {
-  #   description = "Allow HTTP"
-  #   from_port   = 80
-  #   to_port     = 80
-  #   protocol    = "tcp"
-  #   cidr_blocks = ["0.0.0.0/0"]
-  # }
+  ingress {
+    description = "Allow HTTP"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-  # egress {
-  #   description = "Allow all outbound traffic"
-  #   from_port   = 0
-  #   to_port     = 0
-  #   protocol    = "-1"
-  #   cidr_blocks = ["0.0.0.0/0"]
-  # }
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   tags = {
     Name        = "alb-sg"
-    Environment = "prd"
+    Environment = "ev-3"
   }
 }
 
@@ -65,65 +68,35 @@ resource "aws_security_group" "ec2_sg" {
   description = "Allow HTTP, HTTPS, SSH, and NFS traffic"
   vpc_id      = module.vpc.vpc_id
 
-  # ingress {
-  #   description = "Allow HTTP from ALB"
-  #   from_port   = 80
-  #   to_port     = 80
-  #   protocol    = "tcp"
-  #   security_groups = [aws_security_group.alb_sg.id]
-  # }
+  ingress {
+    description = "Allow HTTP from ALB"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    security_groups = [ aws_security_group.alb_sg.id ]
+  }
 
-  # ingress {
-  #   description = "Allow HTTPS from ALB"
-  #   from_port   = 443
-  #   to_port     = 443
-  #   protocol    = "tcp"
-  #   security_groups = [aws_security_group.alb_sg.id]
-  # }
+  ingress {
+    description = "Allow SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Se recomienda restringir esto a la IP del administrador
+  }
 
-  # ingress {
-  #   description = "Allow SSH"
-  #   from_port   = 22
-  #   to_port     = 22
-  #   protocol    = "tcp"
-  #   cidr_blocks = ["0.0.0.0/0"] # Se recomienda restringir esto a la IP del administrador
-  # }
-
-  # egress {
-  #   description = "Allow all outbound traffic"
-  #   from_port   = 0
-  #   to_port     = 0
-  #   protocol    = "-1"
-  #   cidr_blocks = ["0.0.0.0/0"]
-  # }
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   tags = {
     Name        = "ec2-sg"
-    Environment = "prd"
+    Environment = "ev-3"
   }
 }
-
-# Regla de ingreso para permitir NFS desde EC2 a EFS
-# resource "aws_security_group_rule" "efs_sg_ingress" {
-#   type              = "ingress"
-#   from_port         = 2049
-#   to_port           = 2049
-#   protocol          = "tcp"
-#   security_group_id = aws_security_group.efs_sg.id
-#   source_security_group_id = aws_security_group.ec2_sg.id
-#   description       = "Allow NFS from EC2 instances"
-# }
-
-# Regla de ingreso para permitir NFS desde EFS a EC2
-# resource "aws_security_group_rule" "ec2_sg_ingress" {
-#   type              = "ingress"
-#   from_port         = 2049
-#   to_port           = 2049
-#   protocol          = "tcp"
-#   security_group_id = aws_security_group.ec2_sg.id
-#   source_security_group_id = aws_security_group.efs_sg.id
-#   description       = "Allow NFS from EFS"
-# }
 
 # Security group para EFS
 resource "aws_security_group" "efs_sg" {
@@ -131,8 +104,21 @@ resource "aws_security_group" "efs_sg" {
   description = "Allow NFS traffic from EC2 instances"
   vpc_id      = module.vpc.vpc_id
 
+  ingress {
+    from_port   = 2049
+    to_port     = 2049
+    protocol    = "tcp"
+    security_groups = [ aws_security_group.webserver-sg.id ]
+  }
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
-    description = "Allow all outbound traffic"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -147,12 +133,12 @@ resource "aws_security_group" "efs_sg" {
 
 # Creacion del EFS
 resource "aws_efs_file_system" "efs" {
-  creation_token = "ejemplo-efs"
+  creation_token = "ev3-efs"
 }
 
 resource "aws_efs_mount_target" "efs_mount" {
   file_system_id  = aws_efs_file_system.efs.id
-  subnet_id = element(module.vpc.private_subnets, 0) #aqui esta listando la subred publica 1?necesito el id de cada subred privada
+  subnet_id = element(module.vpc.private_subnets, count.index)
   # security_groups = [aws_security_group.efs_sg.id]
 }
 
@@ -171,7 +157,6 @@ resource "aws_s3_bucket" "ev3bucket" {
 
 resource "aws_s3_bucket_public_access_block" "ev3bucket" {
   bucket = aws_s3_bucket.ev3bucket.id
-
   block_public_acls       = false
   block_public_policy     = false
   ignore_public_acls      = false
@@ -232,16 +217,17 @@ resource "aws_instance" "ec2-webserver" {
   instance_type          = "t2.micro"
   key_name               = "vockey"
   subnet_id              = element(module.vpc.private_subnets, count.index)
-  # vpc_security_group_ids = [aws_security_group.ec2_sg.id]
+  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
+  # security_groups        = [aws_security_group.ec2_sg.id] #If you are creating Instances in a VPC, use vpc_security_group_ids instead. 
   count                  = 3
   availability_zone      = element(module.vpc.azs, count.index)
   depends_on             = [aws_efs_mount_target.efs_mount]
   user_data              = <<-EOF
     #!/bin/bash
-    yum install -y amazon-efs-utils
+    yum install -y httpd php amazon-efs-utils
     mkdir /mnt/efs
     mount -t efs -o tls ${aws_efs_file_system.efs.id}:/ /mnt/efs
-    aws s3 cp s3://${aws_s3_bucket.ev3bucket.bucket}.s3.amazonaws.com/index.php /var/www/html/index.php #
+    aws s3 cp s3://${aws_s3_bucket.ev3bucket.bucket}.s3.amazonaws.com/index.php /var/www/html/index.php
   EOF
   tags = {
     Name = "ec2-webserver ${count.index + 1}"
@@ -252,3 +238,24 @@ output "url" {
   value       = aws_s3_bucket_website_configuration.ev3bucket.website_endpoint
   description = "The URL of the index.php file & static website: "
 }
+
+resource "aws_lb" "ev3_lb" {
+  name               = "ev3-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb_sg.id]
+  subnets            = element(module.vpc.public_subnets, count.index)
+  enable_deletion_protection = false
+
+  access_logs {
+    bucket  = aws_s3_bucket.lb_logs.id
+    prefix  = "ev3-alb-logs"
+    enabled = true
+  }
+
+  tags = {
+    Environment = "ev3"
+  }
+}
+
+#Todo, create target group and listener? & add target group to listener to ev3_lb

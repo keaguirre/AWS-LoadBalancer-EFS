@@ -134,3 +134,11 @@ module "vpc" {
     6.Crear las Instancias EC2.
     7.Crear el Application Load Balancer (ALB).
     8.Probar la Configuración.
+
+# Dudas de clase GUI
+vpc primero
+sg -> ec2, alab, efs
+sg rules
+ec2 instances -> ec2-sg -> vpc-private-a-subnet -> script
+target group
+configurar alb
