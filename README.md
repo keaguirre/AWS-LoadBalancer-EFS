@@ -137,7 +137,7 @@ module "vpc" {
 
 # Dudas de clase GUI
 vpc primero
-sg -> ec2, alab, efs
+sg -> ec2, alb, efs
 sg rules
 ec2 instances -> ec2-sg -> vpc-private-a-subnet -> script
 target group

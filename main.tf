@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "5.53.0" # Ajusta la versión según tus necesidades
+      version = "5.53.0"
     }
   }
 }
@@ -15,7 +15,7 @@ provider "aws" {
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
 
-  name = "my-vpc"
+  name = "ev3-vpc"
   cidr = "10.0.0.0/16"
 
   azs             = ["us-east-1a", "us-east-1b", "us-east-1c"]
@@ -30,12 +30,9 @@ module "vpc" {
     Environment = "dev"
   }
 }
-# If single_nat_gateway = true, then all private subnets will route their Internet traffic through this single NAT gateway.
-# The NAT gateway will be placed in the first public subnet in your public_subnets block.
-
 
 # Security group para ALB
-resource "aws_security_group" "alb_sg" { #ALB es un resource de EC2, deberia realmente tener un sg, podria tomarse como un recuso aparte o es un servicio de ec2?
+resource "aws_security_group" "alb_sg" {
   name        = "alb-sg"
   description = "Allow HTTP traffic to ALB"
   vpc_id      = module.vpc.vpc_id
@@ -108,7 +105,7 @@ resource "aws_security_group" "efs_sg" {
     from_port   = 2049
     to_port     = 2049
     protocol    = "tcp"
-    security_groups = [ aws_security_group.webserver-sg.id ]
+    security_groups = [ aws_security_group.ec2_sg.id ]
   }
 
   ingress {
@@ -137,10 +134,12 @@ resource "aws_efs_file_system" "efs" {
 }
 
 resource "aws_efs_mount_target" "efs_mount" {
-  file_system_id  = aws_efs_file_system.efs.id
-  subnet_id = element(module.vpc.private_subnets, count.index)
-  # security_groups = [aws_security_group.efs_sg.id]
+  count             = length(module.vpc.private_subnets)
+  file_system_id    = aws_efs_file_system.efs.id
+  subnet_id         = element(module.vpc.private_subnets, count.index)
+  security_groups   = [aws_security_group.efs_sg.id]
 }
+
 
 # Creacion del Bucket index.php
 resource "random_id" "bucket" {
@@ -182,7 +181,7 @@ resource "aws_s3_bucket_policy" "ev3bucket" {
       },
     ],
   })
-  depends_on = [time_sleep.wait_10_seconds]
+  depends_on = [ time_sleep.wait_10_seconds ]
 }
 
 # Bucket index.php y error.html objects
@@ -217,11 +216,11 @@ resource "aws_instance" "ec2-webserver" {
   instance_type          = "t2.micro"
   key_name               = "vockey"
   subnet_id              = element(module.vpc.private_subnets, count.index)
-  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
+  vpc_security_group_ids = [ aws_security_group.ec2_sg.id ]
   # security_groups        = [aws_security_group.ec2_sg.id] #If you are creating Instances in a VPC, use vpc_security_group_ids instead. 
   count                  = 3
   availability_zone      = element(module.vpc.azs, count.index)
-  depends_on             = [aws_efs_mount_target.efs_mount]
+  depends_on             = [ aws_efs_mount_target.efs_mount ]
   user_data              = <<-EOF
     #!/bin/bash
     yum install -y httpd php amazon-efs-utils
@@ -234,28 +233,46 @@ resource "aws_instance" "ec2-webserver" {
   }
 }
 
-output "url" {
-  value       = aws_s3_bucket_website_configuration.ev3bucket.website_endpoint
-  description = "The URL of the index.php file & static website: "
+resource "aws_lb_target_group" "alb-tg" {
+  name     = "alb-tg"
+  target_type = "instance"
+  protocol = "HTTP"
+  port     = 80
+  ip_address_type = "ipv4"
+  vpc_id   = module.vpc.vpc_id
 }
 
 resource "aws_lb" "ev3_lb" {
-  name               = "ev3-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = element(module.vpc.public_subnets, count.index)
+  count                  = 3
+  name                   = "ev3-alb-${count.index}"
+  internal               = false
+  load_balancer_type     = "application"
+  security_groups        = [aws_security_group.alb_sg.id]
+  subnets                = module.vpc.public_subnets
   enable_deletion_protection = false
-
-  access_logs {
-    bucket  = aws_s3_bucket.lb_logs.id
-    prefix  = "ev3-alb-logs"
-    enabled = true
-  }
 
   tags = {
     Environment = "ev3"
   }
 }
 
-#Todo, create target group and listener? & add target group to listener to ev3_lb
+resource "aws_lb_listener" "alb_listener" {
+  load_balancer_arn = aws_lb.ev3_lb[0].arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.alb-tg.arn
+  }
+}
+
+output "url" {
+  value       = aws_s3_bucket_website_configuration.ev3bucket.website_endpoint
+  description = "The URL of the index.php file & static website: "
+}
+
+output "load_balancer_dns" { 
+  value = aws_lb.ev3_lb[0].dns_name 
+  description = "The DNS name of the load balancer" 
+}
