@@ -242,7 +242,14 @@ resource "aws_lb_target_group" "alb-tg" {
   vpc_id   = module.vpc.vpc_id
 }
 
-resource "aws_lb" "ev3_lb" {
+resource "aws_lb_target_group_attachment" "alb-tg-attachment" {
+  count           = 3
+  target_group_arn = aws_lb_target_group.alb-tg.arn
+  target_id       = aws_instance.ec2-webserver[count.index].id
+  port            = 80
+}
+
+resource "aws_lb" "ev3_lb" { #Estoy generando 3 alb en total? solo basta 1 con 3 instanciada segun las public subnets una en cada az
   count                  = 3
   name                   = "ev3-alb-${count.index}"
   internal               = false
@@ -256,12 +263,7 @@ resource "aws_lb" "ev3_lb" {
   }
 }
 
-resource "aws_lb_target_group_attachment" "alb-tg-attachment" {
-  count           = 3
-  target_group_arn = aws_lb_target_group.alb-tg.arn
-  target_id       = aws_instance.ec2-webserver[count.index].id
-  port            = 80
-}
+
 
 resource "aws_lb_listener" "alb_listener" {
   load_balancer_arn = aws_lb.ev3_lb[0].arn
@@ -281,5 +283,5 @@ output "url" {
 
 output "load_balancer_dns" { 
   value = aws_lb.ev3_lb[0].dns_name 
-  description = "The DNS name of the load balancer" 
+  description = "The DNS name of the load balancer: " 
 }
