@@ -247,7 +247,7 @@ resource "aws_lb" "ev3_lb" {
   name                   = "ev3-alb-${count.index}"
   internal               = false
   load_balancer_type     = "application"
-  security_groups        = [aws_security_group.alb_sg.id]
+  security_groups        = [aws_security_group.ec2_sg.id]
   subnets                = module.vpc.public_subnets
   enable_deletion_protection = false
 
