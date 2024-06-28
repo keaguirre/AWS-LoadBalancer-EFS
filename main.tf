@@ -87,6 +87,13 @@ resource "aws_security_group" "ec2_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"] # Se recomienda restringir esto a la IP del administrador
   }
+  ingress {
+    description = "Allow SSH"
+    from_port   = 2049
+    to_port     = 2049
+    protocol    = "tcp"
+    security_groups = [ aws_security_group.efs_sg.id ]
+  }
 
   egress {
     description = "Allow all outbound traffic"
