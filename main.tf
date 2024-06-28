@@ -249,12 +249,11 @@ resource "aws_lb_target_group_attachment" "alb-tg-attachment" {
   port            = 80
 }
 
-resource "aws_lb" "ev3_lb" { #Estoy generando 3 alb en total? solo basta 1 con 3 instanciada segun las public subnets una en cada az
-  count                  = 3
-  name                   = "ev3-alb-${count.index}"
+resource "aws_lb" "ev3_lb" {
+  name                   = "ev3-alb"
   internal               = false
   load_balancer_type     = "application"
-  security_groups        = [aws_security_group.alb_sg.id]
+  security_groups        = [ aws_security_group.alb_sg.id ]
   subnets                = module.vpc.public_subnets
   enable_deletion_protection = false
 
@@ -263,10 +262,8 @@ resource "aws_lb" "ev3_lb" { #Estoy generando 3 alb en total? solo basta 1 con 3
   }
 }
 
-
-
 resource "aws_lb_listener" "alb_listener" {
-  load_balancer_arn = aws_lb.ev3_lb[0].arn
+  load_balancer_arn = aws_lb.ev3_lb.arn
   port              = "80"
   protocol          = "HTTP"
 
@@ -282,6 +279,6 @@ output "url" {
 }
 
 output "load_balancer_dns" { 
-  value = aws_lb.ev3_lb[0].dns_name 
+  value = aws_lb.ev3_lb.dns_name 
   description = "The DNS name of the load balancer: " 
 }
