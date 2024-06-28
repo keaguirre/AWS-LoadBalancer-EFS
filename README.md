@@ -63,3 +63,5 @@ module "vpc" {
 - terraform graph > graph.dot
 - sudo dnf install graphviz
 - dot -Tpng graph.dot -o graph.png
+
+# [Module caching](https://medium.com/the-scale-factory/terraform-plugin-caching-a5e7a9322f35)

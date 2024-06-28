@@ -87,13 +87,6 @@ resource "aws_security_group" "ec2_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"] # Se recomienda restringir esto a la IP del administrador
   }
-  ingress {
-    description = "Allow SSH"
-    from_port   = 2049
-    to_port     = 2049
-    protocol    = "tcp"
-    security_groups = [ aws_security_group.efs_sg.id ]
-  }
 
   egress {
     description = "Allow all outbound traffic"
@@ -119,7 +112,7 @@ resource "aws_security_group" "efs_sg" {
     from_port   = 2049
     to_port     = 2049
     protocol    = "tcp"
-    security_groups = [ aws_security_group.ec2_sg.id ]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -134,6 +127,29 @@ resource "aws_security_group" "efs_sg" {
     Environment = "prd"
   }
 }
+
+# Actualizar Security group para EC2 para permitir tráfico NFS desde EFS
+resource "aws_security_group_rule" "ec2_sg_to_efs" {
+  type              = "ingress"
+  from_port         = 2049
+  to_port           = 2049
+  protocol          = "tcp"
+  security_group_id = aws_security_group.ec2_sg.id
+  source_security_group_id = aws_security_group.efs_sg.id
+  description       = "Allow NFS traffic from EFS"
+}
+
+# Actualizar Security group para EFS para permitir tráfico NFS desde EC2
+resource "aws_security_group_rule" "efs_to_ec2_sg" {
+  type              = "ingress"
+  from_port         = 2049
+  to_port           = 2049
+  protocol          = "tcp"
+  security_group_id = aws_security_group.efs_sg.id
+  source_security_group_id = aws_security_group.ec2_sg.id
+  description       = "Allow NFS traffic from EC2"
+}
+
 
 # Creacion del EFS
 resource "aws_efs_file_system" "efs" {
