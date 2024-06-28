@@ -54,8 +54,10 @@ module "vpc" {
 # Terraform comandos básicos
 - terraform init
 - terraform init --upgrade
+- terraform plan
+- terraform validate
 - terraform apply -auto-approve
-- terraform destroy
+- terraform destroy -auto-approve
 
 # Generar grafico de la IaaC
 - terraform graph > graph.dot

@@ -72,6 +72,13 @@ resource "aws_security_group" "ec2_sg" {
     protocol    = "tcp"
     security_groups = [ aws_security_group.alb_sg.id ]
   }
+  ingress {
+    description = "Allow HTTPS from ALB"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    security_groups = [ aws_security_group.alb_sg.id ]
+  }
 
   ingress {
     description = "Allow SSH"
@@ -108,13 +115,6 @@ resource "aws_security_group" "efs_sg" {
     security_groups = [ aws_security_group.ec2_sg.id ]
   }
 
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -140,7 +140,6 @@ resource "aws_efs_mount_target" "efs_mount" {
   security_groups   = [aws_security_group.efs_sg.id]
 }
 
-
 # Creacion del Bucket index.php
 resource "random_id" "bucket" {
   byte_length = 8
@@ -150,7 +149,7 @@ resource "aws_s3_bucket" "ev3bucket" {
   bucket = "ev3bucket-${random_id.bucket.hex}"
 
   tags = {
-    Name = "ev3bucket-${random_id.bucket.hex}"
+    Name = "ev3bucket"
   }
 }
 
@@ -169,17 +168,17 @@ resource "time_sleep" "wait_10_seconds" {
 
 resource "aws_s3_bucket_policy" "ev3bucket" {
   bucket     = aws_s3_bucket.ev3bucket.id
-  policy     = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Sid = "PublicRead",
-        Effect = "Allow",
-        Principal = "*",
-        Action = ["s3:GetObject"],
-        Resource = ["${aws_s3_bucket.ev3bucket.arn}/*"],
-      },
-    ],
+  policy = jsonencode({
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Sid": "PublicRead",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": ["s3:GetObject"],
+      "Resource": [
+        "${aws_s3_bucket.ev3bucket.arn}/*"
+      ]
+    }]
   })
   depends_on = [ time_sleep.wait_10_seconds ]
 }
@@ -189,7 +188,7 @@ resource "aws_s3_object" "index" {
   bucket       = aws_s3_bucket.ev3bucket.id
   key          = "index.php"
   source       = "index.php"
-  content_type = "text/html"
+  depends_on = [ aws_s3_bucket_policy.ev3bucket ]
 }
 
 resource "aws_s3_object" "error" {
@@ -226,7 +225,9 @@ resource "aws_instance" "ec2-webserver" {
     yum install -y httpd php amazon-efs-utils
     mkdir /mnt/efs
     mount -t efs -o tls ${aws_efs_file_system.efs.id}:/ /mnt/efs
-    aws s3 cp s3://${aws_s3_bucket.ev3bucket.bucket}.s3.amazonaws.com/index.php /var/www/html/index.php
+    aws s3 cp s3://${aws_s3_bucket.ev3bucket.bucket}/index.php /var/www/html/index.php
+    systemctl start httpd
+    systemctl enable httpd
   EOF
   tags = {
     Name = "ec2-webserver ${count.index + 1}"
@@ -273,12 +274,12 @@ resource "aws_lb_listener" "alb_listener" {
   }
 }
 
-output "url" {
+output "Bucket_url" {
   value       = aws_s3_bucket_website_configuration.ev3bucket.website_endpoint
   description = "The URL of the index.php file & static website: "
 }
 
-output "load_balancer_dns" { 
+output "load_balancer_dns_url" { 
   value = aws_lb.ev3_lb.dns_name 
   description = "The DNS name of the load balancer: " 
 }
