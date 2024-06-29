@@ -253,9 +253,11 @@ resource "aws_instance" "ec2-webserver" {
   depends_on             = [ aws_efs_mount_target.efs_mount ]
   user_data              = <<-EOF
     #!/bin/bash
+    sleep 60
     yum install -y httpd php amazon-efs-utils
     mkdir -p /var/www/html/
     sudo mount -t efs -o tls ${aws_efs_file_system.efs.id}:/ /var/www/html/
+    sleep 30
     systemctl start httpd
     systemctl enable httpd
   EOF
