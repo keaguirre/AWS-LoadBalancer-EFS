@@ -27,13 +27,13 @@ module "vpc" {
 
   tags = {
     Terraform   = "true"
-    Environment = "dev"
+    Environment = "prd"
   }
 }
 
 # Security group para ALB
 resource "aws_security_group" "alb_sg" {
-  name        = "alb-sg"
+  name        = "alb_sg"
   description = "Allow HTTP traffic to ALB"
   vpc_id      = module.vpc.vpc_id
 
@@ -41,6 +41,13 @@ resource "aws_security_group" "alb_sg" {
     description = "Allow HTTP"
     from_port   = 80
     to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  ingress {
+    description = "Allow SSH-test"
+    from_port   = 22
+    to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -54,14 +61,14 @@ resource "aws_security_group" "alb_sg" {
   }
 
   tags = {
-    Name        = "alb-sg"
+    Name        = "alb_sg"
     Environment = "ev-3"
   }
 }
 
 # Security group para EC2
 resource "aws_security_group" "ec2_sg" {
-  name        = "ec2-sg"
+  name        = "ec2_sg"
   description = "Allow HTTP, HTTPS, SSH, and NFS traffic"
   vpc_id      = module.vpc.vpc_id
 
@@ -97,14 +104,14 @@ resource "aws_security_group" "ec2_sg" {
   }
 
   tags = {
-    Name        = "ec2-sg"
+    Name        = "ec2_sg"
     Environment = "ev-3"
   }
 }
 
 # Security group para EFS
 resource "aws_security_group" "efs_sg" {
-  name        = "efs-sg"
+  name        = "efs_sg"
   description = "Allow NFS traffic from EC2 instances"
   vpc_id      = module.vpc.vpc_id
 
@@ -112,7 +119,7 @@ resource "aws_security_group" "efs_sg" {
     from_port   = 2049
     to_port     = 2049
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    security_groups = [ aws_security_group.ec2_sg.id ]
   }
 
   egress {
@@ -123,33 +130,10 @@ resource "aws_security_group" "efs_sg" {
   }
 
   tags = {
-    Name        = "efs-sg"
+    Name        = "efs_sg"
     Environment = "prd"
   }
 }
-
-# Actualizar Security group para EC2 para permitir tráfico NFS desde EFS
-resource "aws_security_group_rule" "ec2_sg_to_efs" {
-  type              = "ingress"
-  from_port         = 2049
-  to_port           = 2049
-  protocol          = "tcp"
-  security_group_id = aws_security_group.ec2_sg.id
-  source_security_group_id = aws_security_group.efs_sg.id
-  description       = "Allow NFS traffic from EFS"
-}
-
-# Actualizar Security group para EFS para permitir tráfico NFS desde EC2
-resource "aws_security_group_rule" "efs_to_ec2_sg" {
-  type              = "ingress"
-  from_port         = 2049
-  to_port           = 2049
-  protocol          = "tcp"
-  security_group_id = aws_security_group.efs_sg.id
-  source_security_group_id = aws_security_group.ec2_sg.id
-  description       = "Allow NFS traffic from EC2"
-}
-
 
 # Creacion del EFS
 resource "aws_efs_file_system" "efs" {
@@ -157,7 +141,7 @@ resource "aws_efs_file_system" "efs" {
 }
 
 resource "aws_efs_mount_target" "efs_mount" {
-  count             = length(module.vpc.private_subnets)
+  count             = 3
   file_system_id    = aws_efs_file_system.efs.id
   subnet_id         = element(module.vpc.private_subnets, count.index)
   security_groups   = [aws_security_group.efs_sg.id]
@@ -231,6 +215,30 @@ resource "aws_s3_bucket_website_configuration" "ev3bucket" {
     key = "error.html"
   }
 }
+# EC2 EFS file upload
+resource "aws_instance" "ec2_admin" {
+  ami                    = "ami-08a0d1e16fc3f61ea"
+  instance_type          = "t2.micro"
+  key_name               = "vockey"
+  subnet_id              = element(module.vpc.private_subnets, 0)
+  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
+  depends_on             = [aws_efs_mount_target.efs_mount]
+
+  user_data              = <<-EOF
+    #!/bin/bash
+    sleep 60
+    yum install -y amazon-efs-utils
+    mkdir -p /var/www/html/
+    echo ${aws_efs_file_system.efs.id}:/ /var/www/html efs _netdev,tls 0 0 >> /etc/fstab
+    sudo mount -a
+    sleep 30
+    wget -O /var/www/html/index.php ${aws_s3_bucket.ev3bucket.bucket}/index.php
+  EOF
+
+  tags = {
+    Name = "ec2_admin"
+  }
+}
 
 # Instancias EC2
 resource "aws_instance" "ec2-webserver" {
@@ -246,9 +254,8 @@ resource "aws_instance" "ec2-webserver" {
   user_data              = <<-EOF
     #!/bin/bash
     yum install -y httpd php amazon-efs-utils
-    mkdir /mnt/efs
-    mount -t efs -o tls ${aws_efs_file_system.efs.id}:/ /mnt/efs
-    aws s3 cp s3://${aws_s3_bucket.ev3bucket.bucket}/index.php /var/www/html/index.php
+    mkdir -p /var/www/html/
+    sudo mount -t efs -o tls ${aws_efs_file_system.efs.id}:/ /var/www/html/
     systemctl start httpd
     systemctl enable httpd
   EOF
@@ -305,4 +312,8 @@ output "Bucket_url" {
 output "load_balancer_dns_url" { 
   value = aws_lb.ev3_lb.dns_name 
   description = "The DNS name of the load balancer: " 
+}
+output "efs_dns_url" { 
+  value = aws_efs_file_system.efs.id
+  description = "The DNS name of the EFS: " 
 }
