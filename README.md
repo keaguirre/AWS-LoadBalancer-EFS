@@ -1,4 +1,4 @@
-### Contenido del repositorio ☁️
+# Contenido del repositorio ☁️
 Este repositorio contiene un conjunto de configuraciones de Terraform diseñadas para implementar una infraestructura completa en AWS. La infraestructura incluye una red VPC, instancias EC2, un sistema de archivos EFS, un balanceador de carga de aplicaciones (ALB) y un bucket S3. A continuación se describe brevemente cada componente y su función dentro de la arquitectura:
 
 1. **Proveedor y Región de AWS:**
